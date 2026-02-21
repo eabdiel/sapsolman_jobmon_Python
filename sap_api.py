@@ -1,104 +1,123 @@
+
 # ======================================================================
 #  File......: sap_api.py
-#  Purpose...: SAP job monitoring API layer (mock now, RFC later).
-#  Version...: 0.1.0
+#  Purpose...: SAP job monitoring API layer (RFC-enabled)
+#  Version...: 0.2.0
 #  Date......: 2026-02-21
 #  Author....: Edwin Rodriguez (Arthrex IT SAP COE)
 # ======================================================================
 
 from __future__ import annotations
 
-import random
-from datetime import datetime, timedelta
 from typing import List, Dict, Any, Tuple
 
-# tracked_jobs: List[Tuple[job_name, job_user, expected_duration_sec]]
 TrackedJob = Tuple[str, str, int]
 
 
-def fetch_jobs_mock(tracked_jobs: List[TrackedJob]) -> List[Dict[str, Any]]:
-    """
-    Mock generator so you can build the UI + tray + JSON loop first.
-    Replace later with fetch_jobs_rfc() once your Z RFC exists.
-    """
-    out: List[Dict[str, Any]] = []
-    now = datetime.now().astimezone()
+def fetch_jobs_rfc(conn, tracked_jobs: List[TrackedJob]) -> List[Dict[str, Any]]:
 
-    statuses = ["SCHEDULED", "RUNNING", "OK", "FAILED", "CANCELLED"]
-    weights = [0.30, 0.20, 0.35, 0.10, 0.05]
+    it_filter = []
+    expected_map = {}
 
     for job_name, job_user, expected in tracked_jobs:
-        status = random.choices(statuses, weights=weights, k=1)[0]
+        expected_map[job_name] = expected
+        it_filter.append({
+            "JOBNAME": job_name,
+            "SDLUNAME": job_user or "",
+            "JOBCOUNT": "",
+            "CLIENT": ""
+        })
 
-        last_start = None
-        last_end = None
-        runtime_sec = None
-        current_step = ""
-        current_step_runtime_sec = None
-        steps = []
+    resp = conn.call(
+        "ZSRE_JOBMON_EXPORT",
+        IT_FILTER=it_filter,
+        IV_ONLY_LATEST="X",
+        IV_ONLY_ACTIVE="",
+        IV_INCLUDE_STEPS="X",
+        IV_MAX_JOBS=200
+    )
 
-        next_run = (now + timedelta(minutes=random.choice([5, 15, 30, 60, 120]))).isoformat()
+    et_jobs = resp.get("ET_JOBS", []) or []
+    et_steps = resp.get("ET_STEPS", []) or []
 
-        if status in ("RUNNING", "OK", "FAILED", "CANCELLED"):
-            start_dt = now - timedelta(seconds=random.randint(30, 900))
-            last_start = start_dt.isoformat()
-            runtime_sec = int((now - start_dt).total_seconds())
+    steps_by_key: Dict[tuple, List[Dict[str, Any]]] = {}
+    for s in et_steps:
+        key = (s.get("JOBNAME", ""), s.get("JOBCOUNT", ""))
+        steps_by_key.setdefault(key, []).append({
+            "step_no": int(s.get("STEPCNT") or 0),
+            "type": s.get("STEP_TYPE", "") or "ABAP",
+            "name": s.get("PROGNAME", "") or "",
+            "variant": s.get("VARIANT", "") or "",
+            "status": s.get("STEP_STATUS", "") or "UNKNOWN",
+        })
 
-            # steps
-            step_count = random.randint(2, 6)
-            running_step = random.randint(1, step_count) if status == "RUNNING" else step_count
-            for i in range(1, step_count + 1):
-                st = "DONE"
-                if status == "RUNNING" and i == running_step:
-                    st = "RUNNING"
-                steps.append({"step_no": i, "type": "ABAP", "name": f"ZREPORT_{i:02d}", "status": st})
+    out: List[Dict[str, Any]] = []
 
-            if status == "RUNNING":
-                current_step = f"Step {running_step}/{step_count} - {steps[running_step-1]['name']}"
-                current_step_runtime_sec = random.randint(10, max(10, runtime_sec))
+    for j in et_jobs:
+        job_name = (j.get("JOBNAME") or "").strip()
+        jobcount = (j.get("JOBCOUNT") or "").strip()
 
-            if status != "RUNNING":
-                end_dt = start_dt + timedelta(seconds=runtime_sec + random.randint(5, 120))
-                last_end = end_dt.isoformat()
+        expected = int(expected_map.get(job_name, 0) or 0)
+
+        runtime_sec = j.get("RUNTIME_SEC")
+        try:
+            runtime_sec = int(runtime_sec) if runtime_sec not in (None, "") else None
+        except Exception:
+            runtime_sec = None
 
         late_by = 0
         if expected and runtime_sec and runtime_sec > expected:
             late_by = runtime_sec - expected
 
-        out.append(
-            {
-                "job_name": job_name,
-                "job_user": job_user,
-                "tracked": True,
-                "status": status,
-                "last_start": last_start,
-                "last_end": last_end,
-                "next_run": next_run,
-                "runtime_sec": runtime_sec,
-                "expected_duration_sec": expected,
-                "late_by_sec": late_by,
-                "current_step": current_step,
-                "current_step_runtime_sec": current_step_runtime_sec,
-                "steps": steps,
-                "last_message": "" if status != "FAILED" else "Mock failure: return code 8",
-            }
-        )
+        def dt_str(d, t):
+            d = (d or "").strip()
+            t = (t or "").strip()
+            if len(d) == 8 and d.isdigit():
+                yyyy, mm, dd = d[0:4], d[4:6], d[6:8]
+                if t and len(t) >= 6 and t.isdigit():
+                    hh, mi, ss = t[0:2], t[2:4], t[4:6]
+                    return f"{yyyy}-{mm}-{dd}T{hh}:{mi}:{ss}"
+                return f"{yyyy}-{mm}-{dd}"
+            return None
+
+        last_start = dt_str(j.get("STRTDATE"), j.get("STRTTIME"))
+        last_end = dt_str(j.get("ENDDATE"), j.get("ENDTIME"))
+
+        key = (job_name, jobcount)
+        steps = steps_by_key.get(key, [])
+
+        status_txt = (j.get("STATUS_TXT") or "").strip() or "UNKNOWN"
+
+        current_step_txt = (j.get("CURRENT_STEP_TXT") or "").strip()
+        current_step_no = j.get("CURRENT_STEP_NO")
+        try:
+            current_step_no = int(current_step_no) if current_step_no not in (None, "") else None
+        except Exception:
+            current_step_no = None
+
+        current_step = ""
+        if current_step_no and current_step_txt:
+            current_step = f"Step {current_step_no} - {current_step_txt}"
+        elif current_step_txt:
+            current_step = current_step_txt
+
+        out.append({
+            "job_name": job_name,
+            "job_user": (j.get("SDLUNAME") or "").strip(),
+            "tracked": True,
+            "status": status_txt,
+            "raw_status": (j.get("STATUS") or "").strip(),
+            "jobcount": jobcount,
+            "last_start": last_start,
+            "last_end": last_end,
+            "next_run": None,
+            "runtime_sec": runtime_sec,
+            "expected_duration_sec": expected,
+            "late_by_sec": late_by,
+            "current_step": current_step,
+            "current_step_runtime_sec": None,
+            "steps": steps,
+            "last_message": (j.get("MSG") or "").strip()
+        })
 
     return out
-
-
-def fetch_jobs_rfc(conn, tracked_jobs: List[TrackedJob]) -> List[Dict[str, Any]]:
-    """
-    RFC version (placeholder).
-    Once ABAP Z RFC is ready, this becomes something like:
-
-      payload = {
-          "IT_JOB_FILTER": [{"JOBNAME": n, "JOBCOUNT": "", "SDLUNAME": u} for (n,u,_) in tracked_jobs],
-          "IV_INCLUDE_STEPS": "X",
-          "IV_ONLY_ACTIVE": "",
-      }
-      resp = conn.call("Z_SRE_JOBMON_EXPORT", **payload)
-
-    Return a list of dicts shaped like fetch_jobs_mock() output.
-    """
-    raise NotImplementedError("Wire this once Z_SRE_JOBMON_EXPORT is available.")

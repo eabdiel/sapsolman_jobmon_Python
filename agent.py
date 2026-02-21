@@ -17,7 +17,8 @@ from typing import Callable, Optional, Dict, Any, List, Tuple
 import pandas as pd
 
 from snapshot_io import atomic_write_json, read_json, write_json
-from sap_api import fetch_jobs_mock  # swap later to RFC fetcher
+from sap_api import fetch_jobs_rfc
+from sap_connector import connect_sso
 
 
 DATA_DIR = Path("data")
@@ -139,7 +140,9 @@ class AgentController:
             #     conn = sap_conn_factory()
 
             # MOCK for now:
-            jobs = fetch_jobs_mock(tracked_jobs)
+            if conn is None:
+                conn = connect_sso(system="SMP", client="100", sysnr="00")
+            jobs = fetch_jobs_rfc(conn, tracked_jobs)
 
             snapshot = {
                 "meta": {
