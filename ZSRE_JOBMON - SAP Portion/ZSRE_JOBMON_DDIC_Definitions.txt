@@ -137,7 +137,7 @@ Function module interface references:
 - ET_MESSAGES      TYPE BAPIRET2_T (standard)
 
 ---------------------------------------------------------------------
-8) IMPLEMENTATION CHECKLIST (HAND-OFF TO JUNIOR DEV)
+8) IMPLEMENTATION CHECKLIST
 ---------------------------------------------------------------------
 1. Create package (e.g., ZSRE_MON) and assign all objects.
 2. In SE11:
