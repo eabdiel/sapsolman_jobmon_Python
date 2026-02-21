@@ -1,0 +1,170 @@
+======================================================================
+DDIC DEFINITIONS (ZSRE*)
+======================================================================
+Author : Edwin Rodriguez (Arthrex IT SAP COE)
+Date   : 2026-02-21
+Scope  : SMP / Client 100
+Purpose: Provide SE11 build instructions for DDIC types used by
+         function module ZSRE_JOBMON_EXPORT.
+
+NOTE:
+- Use STANDARD TABLE types unless otherwise stated.
+- Keep keys simple (default key) for RFC payload friendliness.
+- Prefer referencing SAP table fields directly (TBTCO/TBTCP) where possible.
+
+---------------------------------------------------------------------
+1) STRUCTURE: ZSRES_JOBMON_FILTER
+---------------------------------------------------------------------
+Transaction: SE11 -> Data type -> Structure -> Create
+
+Short Description:
+  Job monitor filter row (input)
+
+Fields (in this order):
+1. JOBNAME    TYPE TBTCO-JOBNAME        "Job name (required)
+2. SDLUNAME   TYPE TBTCO-SDLUNAME       "Scheduling user (optional)
+3. JOBCOUNT   TYPE TBTCO-JOBCOUNT       "Job count (optional; blank means 'latest' when IV_ONLY_LATEST='X')
+4. CLIENT     TYPE MANDT               "Optional; typically implied by RFC logon client
+
+Activation: Activate structure.
+
+---------------------------------------------------------------------
+2) TABLE TYPE: ZSRET_JOBMON_FILTER
+---------------------------------------------------------------------
+Transaction: SE11 -> Data type -> Table Type -> Create
+
+Short Description:
+  Job monitor filter table (input)
+
+Row type:
+  ZSRES_JOBMON_FILTER
+
+Table type settings:
+  - Data type: STANDARD TABLE
+  - Key definition: DEFAULT KEY (leave as default key)
+
+Activate table type.
+
+---------------------------------------------------------------------
+3) STRUCTURE: ZSRES_JOBMON_JOB
+---------------------------------------------------------------------
+Transaction: SE11 -> Data type -> Structure -> Create
+
+Short Description:
+  Job monitor job header (output)
+
+Fields (recommended order):
+1. JOBNAME           TYPE TBTCO-JOBNAME
+2. JOBCOUNT          TYPE TBTCO-JOBCOUNT
+3. SDLUNAME          TYPE TBTCO-SDLUNAME
+4. STATUS            TYPE TBTCO-STATUS          "Raw SAP status code (source of truth)
+5. STATUS_TXT        TYPE CHAR20               "Minimal bucket: RUNNING/SCHEDULED/DONE/ERROR/CANCELLED/UNKNOWN
+6. STRTDATE          TYPE TBTCO-STRTDATE
+7. STRTTIME          TYPE TBTCO-STRTTIME
+8. ENDDATE           TYPE TBTCO-ENDDATE
+9. ENDTIME           TYPE TBTCO-ENDTIME
+10. RUNTIME_SEC      TYPE INT4                 "Derived runtime seconds (start->end or start->now)
+11. IS_ACTIVE        TYPE ABAP_BOOL            "X if status bucket RUNNING (best-effort)
+12. CURRENT_STEP_NO  TYPE INT2                 "Best-effort step number
+13. CURRENT_STEP_TXT TYPE CHAR80               "Best-effort step text (e.g., program/variant)
+14. MSG              TYPE CHAR120              "Optional summary / message
+
+Activation: Activate structure.
+
+---------------------------------------------------------------------
+4) TABLE TYPE: ZSRET_JOBMON_JOB
+---------------------------------------------------------------------
+Transaction: SE11 -> Data type -> Table Type -> Create
+
+Short Description:
+  Job monitor job header table (output)
+
+Row type:
+  ZSRES_JOBMON_JOB
+
+Table type settings:
+  - STANDARD TABLE
+  - DEFAULT KEY
+
+Activate table type.
+
+---------------------------------------------------------------------
+5) STRUCTURE: ZSRES_JOBMON_STEP
+---------------------------------------------------------------------
+Transaction: SE11 -> Data type -> Structure -> Create
+
+Short Description:
+  Job monitor job step (output)
+
+Fields (recommended order):
+1. JOBNAME      TYPE TBTCP-JOBNAME
+2. JOBCOUNT     TYPE TBTCP-JOBCOUNT
+3. STEPCNT      TYPE TBTCP-STEPCNT
+4. PROGNAME     TYPE TBTCP-PROGNAME
+5. VARIANT      TYPE TBTCP-VARIANT
+6. AUTHCKNAM    TYPE TBTCP-AUTHCKNAM       "If present in your release; else use CHAR12 and name it AUTHCKNAM
+7. LANGU        TYPE TBTCP-LANGU           "If present in your release; else use SPRAS
+8. STEP_TYPE    TYPE CHAR10               "Default 'ABAP' in v1
+9. STEP_STATUS  TYPE CHAR12               "Best-effort: RUNNING/UNKNOWN
+10. STEP_TEXT   TYPE CHAR120              "Formatted display text
+
+Activation: Activate structure.
+
+---------------------------------------------------------------------
+6) TABLE TYPE: ZSRET_JOBMON_STEP
+---------------------------------------------------------------------
+Transaction: SE11 -> Data type -> Table Type -> Create
+
+Short Description:
+  Job monitor job step table (output)
+
+Row type:
+  ZSRES_JOBMON_STEP
+
+Table type settings:
+  - STANDARD TABLE
+  - DEFAULT KEY
+
+Activate table type.
+
+---------------------------------------------------------------------
+7) FUNCTION MODULE DEPENDENCY
+---------------------------------------------------------------------
+Function module interface references:
+- IT_FILTER        TYPE ZSRET_JOBMON_FILTER
+- ET_JOBS          TYPE ZSRET_JOBMON_JOB
+- ET_STEPS         TYPE ZSRET_JOBMON_STEP
+- ET_MESSAGES      TYPE BAPIRET2_T (standard)
+
+---------------------------------------------------------------------
+8) IMPLEMENTATION CHECKLIST (HAND-OFF TO JUNIOR DEV)
+---------------------------------------------------------------------
+1. Create package (e.g., ZSRE_MON) and assign all objects.
+2. In SE11:
+   a) Create ZSRES_JOBMON_FILTER (activate)
+   b) Create ZSRET_JOBMON_FILTER (activate)
+   c) Create ZSRES_JOBMON_JOB (activate)
+   d) Create ZSRET_JOBMON_JOB (activate)
+   e) Create ZSRES_JOBMON_STEP (activate)
+   f) Create ZSRET_JOBMON_STEP (activate)
+3. In SE80: Create Function Group ZSRE_JOBMON.
+4. In SE37:
+   a) Create FM ZSRE_JOBMON_EXPORT
+   b) Mark as Remote-Enabled Module
+   c) Add interface parameters as listed above
+   d) Paste ABAP implementation (provided separately in .abap file)
+   e) Activate
+5. Quick test in SE37:
+   - Provide IT_FILTER with 1-3 known JOBNAME values (from SM37)
+   - Run with IV_ONLY_LATEST='X' and IV_INCLUDE_STEPS='X'
+   - Validate ET_JOBS status/timestamps and ET_STEPS program/variant match SM37.
+
+---------------------------------------------------------------------
+9) NOTES / COMMON ISSUES
+---------------------------------------------------------------------
+- AUTHCKNAM / LANGU availability can vary by SAP release. If missing, replace with:
+  * AUTHCKNAM TYPE CHAR12
+  * LANGU     TYPE SPRAS
+- STATUS codes can vary. We keep STATUS raw and only provide STATUS_TXT as a minimal bucket.
+- Avoid changing field names once Python integration begins; treat DDIC as a contract.
+======================================================================
