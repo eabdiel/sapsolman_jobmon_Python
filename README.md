@@ -142,11 +142,3 @@ Recommended later additions for production packaging:
 
 ------------------------------------------------------------------------
 
-## Internal Use Notice
-
-This tool is intended for internal SAP SRE monitoring use.\
-Do not expose externally without proper security review.
-
-------------------------------------------------------------------------
-
-End of Document
