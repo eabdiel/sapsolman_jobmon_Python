@@ -1,7 +1,7 @@
 ======================================================================
 DDIC DEFINITIONS (ZSRE*)
 ======================================================================
-Author : Edwin Rodriguez (Arthrex IT SAP COE)
+Author : Ed Rodriguez — ProgreTech LLC
 Date   : 2026-02-21
 Scope  : SMP / Client 100
 Purpose: Provide SE11 build instructions for DDIC types used by
