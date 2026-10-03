@@ -4,7 +4,7 @@
 #              Can run standalone or be embedded by main.py
 #  Version...: 0.3.0
 #  Date......: 2026-02-21
-#  Author....: Edwin Rodriguez (Arthrex IT SAP COE)
+#  Author....: Ed Rodriguez - ProgreTech LLC
 # ======================================================================
 
 from __future__ import annotations

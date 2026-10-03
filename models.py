@@ -3,7 +3,7 @@
 #  Purpose...: Dataclasses / models for catalog rows and snapshot records.
 #  Version...: 0.1.0
 #  Date......: 2026-02-21
-#  Author....: Edwin Rodriguez (Arthrex IT SAP COE)
+#  Author....: Ed Rodriguez - ProgreTech LLC
 # ======================================================================
 
 from __future__ import annotations

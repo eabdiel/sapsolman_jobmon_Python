@@ -3,7 +3,7 @@
 #  Purpose...: Single entrypoint to run Bokeh server + Tray app together
 #  Version...: 0.3.0
 #  Date......: 2026-02-21
-#  Author....: Edwin Rodriguez (Arthrex IT SAP COE)
+#  Author....: Ed Rodriguez - ProgreTech LLC
 # ======================================================================
 
 from __future__ import annotations

@@ -4,7 +4,7 @@
 *  Purpose  : Export SAP background job header + step data (SM37-like)
 *             for external monitoring (Python agent / Bokeh dashboard).
 *
-*  Author   : Edwin Rodriguez (Arthrex IT SAP COE)
+*  Author   : Ed Rodriguez - ProgreTech LLC
 *  Version  : 0.1.0
 *  Date     : 2026-02-21
 *

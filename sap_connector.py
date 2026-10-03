@@ -3,7 +3,7 @@
 #  Purpose...: Arthrex SAP SSO connector for PyRFC (SMD / SMP aware)
 #  Version...: 1.2.0
 #  Date......: 2026-01-05
-#  Author....: Edwin Rodriguez (Arthrex IT SAP COE)
+#  Author....: Ed Rodriguez - ProgreTech LLC
 #
 #  Goals:
 #    - No reliance on user env vars (SNC_LIB not required)

@@ -4,7 +4,7 @@
 #  Purpose...: SAP job monitoring API layer (RFC-enabled)
 #  Version...: 0.2.0
 #  Date......: 2026-02-21
-#  Author....: Edwin Rodriguez (Arthrex IT SAP COE)
+#  Author....: Ed Rodriguez - ProgreTech LLC
 # ======================================================================
 
 from __future__ import annotations
